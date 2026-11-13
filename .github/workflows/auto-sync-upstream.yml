@@ -46,6 +46,9 @@ jobs:
             exit 0
           fi
 
-          # Merge normally; conflicts stop the workflow without pushing.
-          git merge --no-edit "upstream/${BASE_BRANCH}"
+          # Keep this fork's own Actions workflows. GitHub's automatic
+          # token cannot push upstream changes to .github/workflows.
+          git merge --no-ff --no-commit -X ours "upstream/${BASE_BRANCH}"
+          git restore --source=HEAD --staged --worktree -- .github/workflows/
+          git commit -m "Merge upstream/${BASE_BRANCH} into ${BASE_BRANCH}"
           git push origin "HEAD:${BASE_BRANCH}"
