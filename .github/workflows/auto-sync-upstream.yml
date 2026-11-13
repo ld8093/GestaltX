@@ -1,0 +1,51 @@
+name: Auto Sync Upstream
+
+on:
+  schedule:
+    # Daily at 00:00 UTC (08:00 Beijing time)
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: auto-sync-upstream-main
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: github.repository == 'ld8093/GestaltX'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out this fork
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch upstream
+        env:
+          UPSTREAM_REPO: huamidev/GestaltX
+          BASE_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          git remote add upstream "https://github.com/${UPSTREAM_REPO}.git"
+          git fetch --no-tags upstream "${BASE_BRANCH}"
+
+      - name: Merge upstream changes
+        env:
+          BASE_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if git merge-base --is-ancestor "upstream/${BASE_BRANCH}" HEAD; then
+            echo "The fork already contains the latest upstream commits."
+            exit 0
+          fi
+
+          # Merge normally; conflicts stop the workflow without pushing.
+          git merge --no-edit "upstream/${BASE_BRANCH}"
+          git push origin "HEAD:${BASE_BRANCH}"
